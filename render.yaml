@@ -1,0 +1,27 @@
+# Render Blueprint — auto-configures the web service on render.com
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: invoice-ai-backend
+    runtime: node
+    region: singapore          # closest to India
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false            # You set this manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false            # You set this manually in Render dashboard
+      - key: JWT_EXPIRE
+        value: 30d
+      - key: JWT_COOKIE_EXPIRE
+        value: 30
+      - key: FRONTEND_URL
+        sync: false            # Set to your Vercel/Netlify frontend URL
