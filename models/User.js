@@ -18,9 +18,13 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Please add a password'],
     minlength: 6,
     select: false // Do not return password by default
+    // Not required — Google OAuth users won't have a password
+  },
+  googleId: {
+    type: String,
+    default: null
   },
   companyName: {
     type: String,
@@ -39,7 +43,7 @@ const UserSchema = new mongoose.Schema({
     default: ''
   },
   avatar: {
-    type: String, // base64 string
+    type: String, // base64 or URL string
     default: ''
   },
   createdAt: {
@@ -48,12 +52,11 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-// Encrypt password using bcrypt before saving
+// Encrypt password using bcrypt before saving (skip if no password / not modified)
 UserSchema.pre('save', async function () {
-  if (!this.isModified('password')) {
+  if (!this.password || !this.isModified('password')) {
     return;
   }
-
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
@@ -67,6 +70,7 @@ UserSchema.methods.getSignedJwtToken = function () {
 
 // Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

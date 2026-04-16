@@ -1,4 +1,7 @@
 import User from '../models/User.js';
+import { OAuth2Client } from 'google-auth-library';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
@@ -173,5 +176,60 @@ export const updateProfile = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Google OAuth Sign-In / Sign-Up
+// @route   POST /api/auth/google
+// @access  Public
+export const googleAuth = async (req, res) => {
+  try {
+    const { accessToken, userInfo } = req.body;
+
+    if (!accessToken || !userInfo) {
+      return res.status(400).json({ success: false, message: 'Google token and user info are required' });
+    }
+
+    // Verify the access token with Google
+    const tokenVerify = await fetch(
+      `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`
+    );
+    const tokenData = await tokenVerify.json();
+
+    if (tokenData.error || !tokenData.email) {
+      return res.status(401).json({ success: false, message: 'Invalid Google access token' });
+    }
+
+    // Ensure the token email matches the userInfo email
+    if (tokenData.email !== userInfo.email) {
+      return res.status(401).json({ success: false, message: 'Token email mismatch' });
+    }
+
+    const { sub: googleId, email, name, picture } = userInfo;
+
+    // Find user by googleId or email
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (user) {
+      // Link googleId if user previously registered with email/password
+      if (!user.googleId) {
+        user.googleId = googleId;
+        if (!user.avatar && picture) user.avatar = picture;
+        await user.save();
+      }
+    } else {
+      // Create new Google user (no password required)
+      user = await User.create({
+        name,
+        email,
+        googleId,
+        avatar: picture || '',
+      });
+    }
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    console.error('Google auth error:', error.message);
+    res.status(401).json({ success: false, message: 'Google sign-in failed. Please try again.' });
   }
 };
