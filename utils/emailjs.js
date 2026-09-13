@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { buildEmailParams } from './emailTemplates.js';
+import { getFrontendUrl } from './appUrl.js';
 
 const EMAILJS_URL = 'https://api.emailjs.com/api/v1.0/email/send';
 
@@ -65,7 +66,7 @@ export async function sendEmailJs(templateParams, templateId) {
 }
 
 export async function sendCredentialsEmail({ name, email, password }) {
-  const appUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const appUrl = getFrontendUrl();
   await sendEmailJs(
     buildEmailParams({ name, email, password, type: 'credentials', appUrl }),
     getEmailJsKeys().welcomeTemplateId
@@ -73,7 +74,7 @@ export async function sendCredentialsEmail({ name, email, password }) {
 }
 
 export async function sendResetEmail({ name, email, resetLink }) {
-  const appUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const appUrl = getFrontendUrl();
   await sendEmailJs(
     buildEmailParams({ name, email, resetLink, type: 'reset', appUrl }),
     getEmailJsKeys().resetTemplateId
@@ -81,7 +82,7 @@ export async function sendResetEmail({ name, email, resetLink }) {
 }
 
 export async function sendPasswordChangedEmail({ name, email }) {
-  const appUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const appUrl = getFrontendUrl();
   await sendEmailJs(
     buildEmailParams({ name, email, type: 'changed', appUrl }),
     getEmailJsKeys().resetTemplateId

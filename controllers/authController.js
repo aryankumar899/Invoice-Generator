@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import User from '../models/User.js';
 import { OAuth2Client } from 'google-auth-library';
 import { buildEmailParams } from '../utils/emailTemplates.js';
+import { getFrontendUrl } from '../utils/appUrl.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -139,7 +140,7 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpire = Date.now() + 30 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    const appUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const appUrl = getFrontendUrl();
     const resetLink = `${appUrl}/reset-password/${rawToken}`;
 
     const mail = buildEmailParams({
@@ -192,7 +193,7 @@ export const resetPassword = async (req, res) => {
         name: user.name,
         email: user.email,
         type: 'changed',
-        appUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
+        appUrl: getFrontendUrl(),
       }),
     });
   } catch (error) {

@@ -4,7 +4,7 @@ export function buildEmailParams({
   password = '',
   resetLink = '',
   type = 'credentials',
-  appUrl = 'http://localhost:5173',
+  appUrl = 'https://invoice-gen-frontend-beryl.vercel.app',
 }) {
   const loginUrl = `${appUrl.replace(/\/$/, '')}/login`;
   const year = String(new Date().getFullYear());
