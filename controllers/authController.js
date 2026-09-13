@@ -1,5 +1,7 @@
+import crypto from 'crypto';
 import User from '../models/User.js';
 import { OAuth2Client } from 'google-auth-library';
+import { buildEmailParams } from '../utils/emailTemplates.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -33,7 +35,8 @@ const sendTokenResponse = (user, statusCode, res) => {
         currency: user.currency,
         phone: user.phone,
         address: user.address,
-        avatar: user.avatar
+        avatar: user.avatar,
+        upiId: user.upiId || ''
       }
     });
 };
@@ -43,7 +46,8 @@ const sendTokenResponse = (user, statusCode, res) => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = String(req.body.email || '').trim().toLowerCase();
 
     // Create user
     const user = await User.create({
@@ -66,7 +70,8 @@ export const register = async (req, res) => {
 // @access  Public
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const password = req.body.password;
+    const email = String(req.body.email || '').trim().toLowerCase();
 
     // Validate email & password
     if (!email || !password) {
@@ -109,34 +114,86 @@ export const getMe = async (req, res) => {
   }
 };
 
-// @desc    Reset password directly via email
-// @route   PUT /api/auth/resetpassword
+// @desc    Request password reset email
+// @route   POST /api/auth/forgotpassword
 // @access  Public
-export const resetPasswordDirectly = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    // Validate request
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Please provide an email and new password' });
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Please provide your account email' });
     }
 
-    // Find the user by email
     const user = await User.findOne({ email });
+    const safeReply = {
+      success: true,
+      message: 'If that email is registered, a reset link has been sent.',
+    };
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'No registered user found with that email' });
+      return res.status(200).json(safeReply);
     }
 
-    // Set the new password structure
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    user.resetPasswordExpire = Date.now() + 30 * 60 * 1000;
+    await user.save({ validateBeforeSave: false });
+
+    const appUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const resetLink = `${appUrl}/reset-password/${rawToken}`;
+
+    const mail = buildEmailParams({
+      name: user.name,
+      email: user.email,
+      resetLink,
+      type: 'reset',
+      appUrl,
+    });
+
+    return res.status(200).json({
+      ...safeReply,
+      mail,
+      devResetLink: process.env.NODE_ENV !== 'production' ? resetLink : undefined,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Reset password with emailed token
+// @route   PUT /api/auth/resetpassword/:token
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const hashed = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const user = await User.findOne({
+      resetPasswordToken: hashed,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired' });
+    }
+
     user.password = password;
-    
-    // Using .save() triggers the 'pre save' bcrypt hashing middleware in the User schema
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
     await user.save();
 
     res.status(200).json({
       success: true,
-      message: 'Password successfully updated'
+      message: 'Password updated. You can now log in with your new password.',
+      mail: buildEmailParams({
+        name: user.name,
+        email: user.email,
+        type: 'changed',
+        appUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
+      }),
     });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -159,6 +216,8 @@ export const updateProfile = async (req, res) => {
     user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
     user.address = req.body.address !== undefined ? req.body.address : user.address;
     user.avatar = req.body.avatar !== undefined ? req.body.avatar : user.avatar;
+    user.currency = req.body.currency !== undefined ? req.body.currency : user.currency;
+    user.upiId = req.body.upiId !== undefined ? req.body.upiId : user.upiId;
 
     const updatedUser = await user.save();
 
@@ -169,9 +228,11 @@ export const updateProfile = async (req, res) => {
         name: updatedUser.name,
         email: updatedUser.email,
         companyName: updatedUser.companyName,
+        currency: updatedUser.currency,
         phone: updatedUser.phone,
         address: updatedUser.address,
-        avatar: updatedUser.avatar
+        avatar: updatedUser.avatar,
+        upiId: updatedUser.upiId || ''
       }
     });
   } catch (error) {

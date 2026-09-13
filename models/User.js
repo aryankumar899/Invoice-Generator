@@ -46,6 +46,18 @@ const UserSchema = new mongoose.Schema({
     type: String, // base64 or URL string
     default: ''
   },
+  upiId: {
+    type: String,
+    default: ''
+  },
+  resetPasswordToken: {
+    type: String,
+    default: undefined
+  },
+  resetPasswordExpire: {
+    type: Date,
+    default: undefined
+  },
   createdAt: {
     type: Date,
     default: Date.now
