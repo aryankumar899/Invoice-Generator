@@ -1,3 +1,28 @@
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function credentialFields(email, password, toName) {
+  const pass = password || '';
+  return {
+    username: email,
+    user_name: email,
+    name: toName || email,
+    user_email: email,
+    email,
+    login_email: email,
+    user_password: pass,
+    password: pass,
+    pass,
+    account_password: pass,
+    login_password: pass,
+  };
+}
+
 export function buildEmailParams({
   name,
   email,
@@ -17,10 +42,11 @@ export function buildEmailParams({
       subject: 'Reset your Invoice AI password',
       preheader: 'Your 30-minute password reset link is ready.',
       headline: 'Reset your password',
-      username: email,
-      user_email: email,
-      user_password: 'Hidden for security — set a new one below',
+      ...credentialFields(email, 'Hidden for security — set a new one below', toName),
       password: '',
+      pass: '',
+      account_password: '',
+      login_password: '',
       reset_link: resetLink,
       link: resetLink,
       email,
@@ -39,10 +65,11 @@ export function buildEmailParams({
       subject: 'Your Invoice AI password was changed',
       preheader: 'Your password was updated successfully.',
       headline: 'Password updated',
-      username: email,
-      user_email: email,
-      user_password: 'Updated just now',
+      ...credentialFields(email, 'Updated just now', toName),
       password: '',
+      pass: '',
+      account_password: '',
+      login_password: '',
       reset_link: loginUrl,
       link: loginUrl,
       email,
@@ -60,17 +87,13 @@ export function buildEmailParams({
     subject: 'Your Invoice AI login credentials',
     preheader: 'Your username and password are inside.',
     headline: 'Your sign-in details',
-    username: email,
-    user_email: email,
-    user_password: password,
-    password,
+    ...credentialFields(email, password, toName),
     reset_link: `${appUrl.replace(/\/$/, '')}/forgot-password`,
     link: loginUrl,
-    email,
     login_url: loginUrl,
     cta_label: 'Open Invoice AI',
     cta_url: loginUrl,
     year,
-    message: 'Keep this email safe. Here is the username and password for your Invoice AI account. You can change the password anytime from Settings after you sign in.',
+    message: `Keep this email safe. These are your Invoice AI sign-in details.<br/><br/><b>Username:</b> ${escapeHtml(email)}<br/><b>Password:</b> ${escapeHtml(password || '(none — Google sign-in)')}<br/><br/>You can change the password anytime from Settings after you sign in.`,
   };
 }
