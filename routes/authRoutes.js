@@ -9,7 +9,9 @@ router.post('/signup', register); // Alias for register
 router.post('/login', login);
 router.post('/google', googleAuth);         // Google OAuth
 router.post('/forgotpassword', forgotPassword);
+router.post('/forgot-password', forgotPassword);
 router.put('/resetpassword/:token', resetPassword);
+router.put('/reset-password/:token', resetPassword);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 
